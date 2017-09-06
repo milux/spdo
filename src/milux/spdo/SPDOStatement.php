@@ -77,6 +77,15 @@ class SPDOStatement {
     }
 
     /**
+     * Returns the number of rows affected by the last execution
+     *
+     * @return int
+     */
+    public function rowCount() {
+        return $this->statement->rowCount();
+    }
+
+    /**
      * Ensures that data is available for processing
      */
     public function init() {
