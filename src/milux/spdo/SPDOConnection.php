@@ -297,7 +297,7 @@ class SPDOConnection {
      */
     public function query($sql) {
         try {
-            return new SPDOStatement($this->pdo->query($this->configObject->preProcess($sql)));
+            return $this->configObject->newSPDOStatement($this->pdo->query($this->configObject->preProcess($sql)));
         } catch (\PDOException $e) {
             throw new SPDOException($e);
         }
@@ -328,7 +328,7 @@ class SPDOConnection {
      */
     public function prepare($sql, array $driver_options = array()) {
         try {
-            return new SPDOStatement($this->pdo->prepare($this->configObject->preProcess($sql), $driver_options));
+            return $this->configObject->newSPDOStatement($this->pdo->prepare($this->configObject->preProcess($sql), $driver_options));
         } catch (\PDOException $e) {
             throw new SPDOException($e);
         }
