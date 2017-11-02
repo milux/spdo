@@ -11,9 +11,9 @@ namespace milux\spdo;
 
 class SPDOStatement {
 
-	/**
-	 * @var \PDOStatement
-	 */
+    /**
+     * @var \PDOStatement
+     */
     private $statement;
     //nesting level (groups) for advanced data handling
     private $nesting = 0;
@@ -26,52 +26,52 @@ class SPDOStatement {
     private $line = null;
 
     public function __construct($statement) {
-		$this->statement = $statement;
+        $this->statement = $statement;
     }
 
-	/**
-	 * Helper function to bind an array of values to this statement
-	 *
-	 * @param array $toBind Parameters to bind
-	 * @return SPDOStatement
-	 */
-	public function bindTyped(array $toBind) {
-		$bindCount = 1;
-		$types = SPDOConnection::getTypes($toBind);
-		foreach($toBind as $k => $v) {
-			$this->statement->bindValue($bindCount++, $v, $types[$k]);
-		}
-		return $this;
-	}
+    /**
+     * Helper function to bind an array of values to this statement
+     *
+     * @param array $toBind Parameters to bind
+     * @return SPDOStatement
+     */
+    public function bindTyped(array $toBind) {
+        $bindCount = 1;
+        $types = SPDOConnection::getTypes($toBind);
+        foreach ($toBind as $k => $v) {
+            $this->statement->bindValue($bindCount++, $v, $types[$k]);
+        }
+        return $this;
+    }
 
-	/**
-	 * modified execute() which returns the underlying PDOStatement object on success,
+    /**
+     * modified execute() which returns the underlying PDOStatement object on success,
      * thus making the execute command "chainable"
-	 *
-	 * @param mixed $argument [optional] might be an array or
+     *
+     * @param mixed $argument [optional] might be an array or
      * the first of an arbitrary number of parameters for binding
-	 * @return SPDOStatement $this
-	 * @throws SPDOException
-	 */
+     * @return SPDOStatement $this
+     * @throws SPDOException
+     */
     public function execute($argument = null) {
-		if(isset($this->data)) {
-			//reset the statement object if necessary
-			$this->nesting = 0;
-			$this->availableColumns = null;
-			$this->data = null;
-			$this->transformed = false;
-			$this->line = null;
-		}
+        if (isset($this->data)) {
+            //reset the statement object if necessary
+            $this->nesting = 0;
+            $this->availableColumns = null;
+            $this->data = null;
+            $this->transformed = false;
+            $this->line = null;
+        }
         try {
-			if(!isset($argument)) {
+            if (!isset($argument)) {
                 $this->statement->execute();
-            } elseif(is_array($argument)) {
+            } elseif (is_array($argument)) {
                 $this->statement->execute($argument);
             } else {
                 $this->statement->execute(func_get_args());
             }
             return $this;
-        } catch(\PDOException $e) {
+        } catch (\PDOException $e) {
             throw new SPDOException($e);
         }
     }
@@ -89,11 +89,11 @@ class SPDOStatement {
      * Ensures that data is available for processing
      */
     public function init() {
-        if(!isset($this->data)) {
+        if (!isset($this->data)) {
             //fetch data for further processing
             $this->data = $this->statement->fetchAll(\PDO::FETCH_ASSOC);
             //check for empty result
-            if(!empty($this->data)) {
+            if (!empty($this->data)) {
                 //save column names as keys and values of lookup array
                 $this->availableColumns = array_combine(array_keys($this->data[0]), array_keys($this->data[0]));
             }
@@ -112,19 +112,19 @@ class SPDOStatement {
     public function immerse($callback, $level = null) {
         $this->init();
         //check for empty result
-        if(empty($this->data)) {
+        if (empty($this->data)) {
             return $this->data;
         }
-        if(!isset($level)) {
+        if (!isset($level)) {
             $level = $this->nesting;
         }
         //recursive immersion closure
         $immerse = function ($data, $callback, $level) use (&$immerse) {
             if ($level === 0) {
-	            /** @noinspection PhpParamsInspection */
-	            return $callback($data);
+                /** @noinspection PhpParamsInspection */
+                return $callback($data);
             } else {
-                foreach($data as &$d) {
+                foreach ($data as &$d) {
                     $d = $immerse($d, $callback, $level - 1);
                 }
                 return $data;
@@ -144,20 +144,20 @@ class SPDOStatement {
     public function group(array $groups) {
         $this->init();
         //check for empty result
-        if(empty($this->data)) {
+        if (empty($this->data)) {
             return $this;
         }
-        if($this->statement->columnCount() <= $this->nesting + count($groups)) {
+        if ($this->statement->columnCount() <= $this->nesting + count($groups)) {
             throw new SPDOException('Cannot do more than ' . ($this->statement->columnCount() - 1)
-                    . ' group operations for ' . $this->statement->columnCount() . ' columns.'
-                    . ' Use getUnique() or immerse() with custom callback retrieve flat structure!');
+                . ' group operations for ' . $this->statement->columnCount() . ' columns.'
+                . ' Use getUnique() or immerse() with custom callback retrieve flat structure!');
         }
-        if($this->transformed) {
+        if ($this->transformed) {
             throw new SPDOException('Cannot safely group transformed elements, transform() must be called after group!');
         }
         $cols = $this->availableColumns;
-        foreach($groups as $g) {
-            if(!isset($cols[$g])) {
+        foreach ($groups as $g) {
+            if (!isset($cols[$g])) {
                 throw new SPDOException('Grouping column ' . $g . ' not available!');
             } else {
                 unset($cols[$g]);
@@ -165,23 +165,23 @@ class SPDOStatement {
         }
         $this->data = $this->immerse(function ($data) use ($groups) {
             //recursive closure for grouping
-            $groupClosure = function($data, array $groups) use (&$groupClosure) {
+            $groupClosure = function ($data, array $groups) use (&$groupClosure) {
                 $group = array_shift($groups);
                 $result = array();
-                foreach($data as $rec) {
-                    if(!isset($rec[$group])) {
+                foreach ($data as $rec) {
+                    if (!isset($rec[$group])) {
                         throw new SPDOException($group . ': ' . json_encode($rec));
                     }
                     $key = $rec[$group];
-                    if(!isset($result[$key])) {
+                    if (!isset($result[$key])) {
                         $result[$key] = array();
                     }
                     unset($rec[$group]);
                     $result[$key][] = $rec;
                 }
                 //recursion: direcly iterate over the grouped maps with further groups
-                if(!empty($groups)) {
-                    foreach($result as &$d) {
+                if (!empty($groups)) {
+                    foreach ($result as &$d) {
                         $d = $groupClosure($d, $groups);
                     }
                 }
@@ -200,7 +200,7 @@ class SPDOStatement {
     public function filter($callback) {
         $this->init();
         //check for empty result
-        if(empty($this->data)) {
+        if (empty($this->data)) {
             return $this;
         }
         $this->data = $this->immerse(function ($data) use ($callback) {
@@ -219,17 +219,17 @@ class SPDOStatement {
     public function cast($typeMap) {
         $this->init();
         //check for empty result
-        if(empty($this->data)) {
+        if (empty($this->data)) {
             return $this;
         }
-        foreach(array_keys($typeMap) as $c) {
-            if(!isset($this->availableColumns[$c])) {
+        foreach (array_keys($typeMap) as $c) {
+            if (!isset($this->availableColumns[$c])) {
                 throw new SPDOException('Casting column ' . $c . ' not available!');
             }
         }
         $this->data = $this->immerse(function ($data) use ($typeMap) {
-            foreach($data as &$d) {
-                foreach($typeMap as $c => $t) {
+            foreach ($data as &$d) {
+                foreach ($typeMap as $c => $t) {
                     settype($d[$c], $t);
                 }
             }
@@ -250,17 +250,17 @@ class SPDOStatement {
     public function mod($callbackMap) {
         $this->init();
         //check for empty result
-        if(empty($this->data)) {
+        if (empty($this->data)) {
             return $this;
         }
-        foreach(array_keys($callbackMap) as $c) {
-            if(!isset($this->availableColumns[$c])) {
+        foreach (array_keys($callbackMap) as $c) {
+            if (!isset($this->availableColumns[$c])) {
                 throw new SPDOException('Casting column ' . $c . ' not available!');
             }
         }
         $this->data = $this->immerse(function ($data) use ($callbackMap) {
-            foreach($data as &$d) {
-                foreach($callbackMap as $co => $cb) {
+            foreach ($data as &$d) {
+                foreach ($callbackMap as $co => $cb) {
                     $d[$co] = call_user_func($cb, $d[$co]);
                 }
             }
@@ -280,7 +280,7 @@ class SPDOStatement {
     public function transform($callback) {
         $this->transformed = true;
         $this->data = $this->immerse(function ($data) use ($callback) {
-            foreach($data as &$d) {
+            foreach ($data as &$d) {
                 $d = $callback($d);
             }
             return $data;
@@ -297,21 +297,21 @@ class SPDOStatement {
      * @throws SPDOException
      */
     public function cell($reset = false) {
-        if($this->nesting > 0) {
+        if ($this->nesting > 0) {
             throw new SPDOException('Cannot iterate cells after group()!');
         }
-        if($this->transformed) {
+        if ($this->transformed) {
             throw new SPDOException('Cannot safely iterate cells after transform()!');
         }
         $this->init();
-        if($reset) {
+        if ($reset) {
             reset($this->data);
         }
         //iteration logic
-        if(!isset($this->line) || $reset) {
+        if (!isset($this->line) || $reset) {
             //if line is not set, use each() over data to get next line
             $eachOut = each($this->data);
-            if($eachOut === false) {
+            if ($eachOut === false) {
                 return false;
             } else {
                 $this->line = $eachOut[1];
@@ -319,7 +319,7 @@ class SPDOStatement {
             }
         }
         $eachIn = each($this->line);
-        if($eachIn === false) {
+        if ($eachIn === false) {
             //set $this->line to null and do one-step-recursion to get next cell
             $this->line = null;
             return $this->cell();
@@ -329,43 +329,43 @@ class SPDOStatement {
         }
     }
 
-	/**
-	 * Get next row of data set
-	 *
-	 * @param bool $reset setting this parameter to true will reset the array pointer
-	 * (required for first call)
-	 * @return mixed
-	 * @throws SPDOException
-	 */
+    /**
+     * Get next row of data set
+     *
+     * @param bool $reset setting this parameter to true will reset the array pointer
+     * (required for first call)
+     * @return mixed
+     * @throws SPDOException
+     */
     public function row($reset = false) {
-	    if($this->nesting > 0) {
-		    throw new SPDOException('Cannot iterate rows after group()!');
-	    }
-	    if($this->line !== null) {
-	    	throw new SPDOException('Cannot iterate rows while iterating cells!');
-	    }
-	    $this->init();
-	    if($reset) {
-		    reset($this->data);
-	    }
-	    $each = each($this->data);
-	    return $each === false ? false : $each[1];
+        if ($this->nesting > 0) {
+            throw new SPDOException('Cannot iterate rows after group()!');
+        }
+        if ($this->line !== null) {
+            throw new SPDOException('Cannot iterate rows while iterating cells!');
+        }
+        $this->init();
+        if ($reset) {
+            reset($this->data);
+        }
+        $each = each($this->data);
+        return $each === false ? false : $each[1];
     }
 
-	/**
-	 * Get next row of data set as
-	 *
-	 * @param bool $reset setting this parameter to true will reset the array pointer
-	 * (required for first call)
-	 * @return mixed
-	 * @throws SPDOException
-	 */
+    /**
+     * Get next row of data set as
+     *
+     * @param bool $reset setting this parameter to true will reset the array pointer
+     * (required for first call)
+     * @return mixed
+     * @throws SPDOException
+     */
     public function rowObject($reset = false) {
-	    if($this->transformed) {
-		    throw new SPDOException('Cannot safely cast transformed rows, use transform() to cast!');
-	    }
-	    $row = $this->row($reset);
-	    return $row === false ? false : (object) $row;
+        if ($this->transformed) {
+            throw new SPDOException('Cannot safely cast transformed rows, use transform() to cast!');
+        }
+        $row = $this->row($reset);
+        return $row === false ? false : (object)$row;
     }
 
     /**
@@ -378,10 +378,10 @@ class SPDOStatement {
      */
     public function get($reduce = true) {
         $this->init();
-        if(!$this->transformed && $this->statement->columnCount() === $this->nesting + 1 && $reduce) {
+        if (!$this->transformed && $this->statement->columnCount() === $this->nesting + 1 && $reduce) {
             return $this->immerse(function ($data) {
                 //reduce 1-element-maps to their value
-                foreach($data as &$cell) {
+                foreach ($data as &$cell) {
                     $cell = reset($cell);
                 }
                 return $data;
@@ -392,10 +392,10 @@ class SPDOStatement {
     }
 
     public function getUnique($reduce = true) {
-        if(!$this->transformed && $this->statement->columnCount() === $this->nesting + 1 && $reduce) {
+        if (!$this->transformed && $this->statement->columnCount() === $this->nesting + 1 && $reduce) {
             return $this->immerse(function ($data) {
                 //reduce 1-element-maps inside 1-element-arrays to their value
-                if(count($data) === 1) {
+                if (count($data) === 1) {
                     return reset(reset($data));
                 } else {
                     throw new SPDOException('Unique fetch failed, map with more than one element was found!');
@@ -404,7 +404,7 @@ class SPDOStatement {
         } else {
             //reduce 1-element-arrays to their value
             return $this->immerse(function ($data) {
-                if(count($data) === 1) {
+                if (count($data) === 1) {
                     return reset($data);
                 } else {
                     throw new SPDOException('Unique fetch failed, map with more than one element found!');
@@ -414,12 +414,12 @@ class SPDOStatement {
     }
 
     public function getObjects() {
-        if($this->transformed) {
+        if ($this->transformed) {
             throw new SPDOException('Cannot safely cast transformed rows, use transform() to cast!');
         }
         //simply cast to objects
         return $this->immerse(function ($data) {
-            foreach($data as &$d) {
+            foreach ($data as &$d) {
                 $d = (object)$d;
             }
             return $data;
@@ -428,24 +428,24 @@ class SPDOStatement {
 
     public function getFunc($callback) {
         return $this->immerse(function ($data) use ($callback) {
-            foreach($data as &$d) {
+            foreach ($data as &$d) {
                 $d = $callback($d);
             }
             return $data;
         });
     }
 
-	/**
-	 * Passes the parameter binding to the underlying statement
-	 *
-	 * @param string $parameter The number/name of the bind parameter
-	 * @param mixed $value The value that is bound
-	 * @param int $data_type The PDO data type
-	 * @return SPDOStatement $this
-	 */
+    /**
+     * Passes the parameter binding to the underlying statement
+     *
+     * @param string $parameter The number/name of the bind parameter
+     * @param mixed $value The value that is bound
+     * @param int $data_type The PDO data type
+     * @return SPDOStatement $this
+     */
     public function bindValue($parameter, $value, $data_type) {
-    	$this->statement->bindValue($parameter, $value, $data_type);
-    	return $this;
+        $this->statement->bindValue($parameter, $value, $data_type);
+        return $this;
     }
 
 }

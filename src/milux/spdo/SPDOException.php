@@ -11,15 +11,15 @@ namespace milux\spdo;
 
 class SPDOException extends \Exception {
 
-	/**
-	 * SPDOException constructor.
-	 *
-	 * @param string|\PDOException $e error message or PDOException
-	 * @param int $code error code
-	 * @param \Exception $previous previous exception
-	 */
+    /**
+     * SPDOException constructor.
+     *
+     * @param string|\PDOException $e error message or PDOException
+     * @param int $code error code
+     * @param \Exception $previous previous exception
+     */
     public function __construct($e, $code = 0, $previous = null) {
-        if($e instanceof \PDOException) {
+        if ($e instanceof \PDOException) {
             parent::__construct($e->getMessage(), (int)$e->getCode(), $e);
             $this->code = $e->getCode();
             $this->message = $e->getMessage();
@@ -30,5 +30,5 @@ class SPDOException extends \Exception {
             parent::__construct($e, $code, $previous);
         }
     }
-    
+
 }
