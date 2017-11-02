@@ -14,19 +14,35 @@ class SPDOStatement {
     /**
      * @var \PDOStatement
      */
-    private $statement;
+    protected $statement;
     //nesting level (groups) for advanced data handling
-    private $nesting = 0;
+    protected $nesting = 0;
     //data structures for advanced data handling
-    private $availableColumns = null;
-    private $data = null;
+    protected $availableColumns = null;
+    protected $data = null;
     //marker for call to transform()
-    private $transformed = false;
+    protected $transformed = false;
     //buffer for iterating with cell()
-    private $line = null;
+    protected $line = null;
 
     public function __construct($statement) {
         $this->statement = $statement;
+    }
+
+    /**
+     * Returns the nested \PDOStatement, must be called before and data-retrieving method
+     * After calling this method, the SPDOStatement becomes invalid and must not be used anymore
+     *
+     * @return \PDOStatement
+     * @throws SPDOException
+     */
+    public function toPDOStatement() {
+        if (isset($this->data)) {
+            throw new SPDOException('Cannot return PDOStatement, this SPDOStatement has already been initialized!');
+        }
+        $statement = $this->statement;
+        $this->statement = null;
+        return $statement;
     }
 
     /**
