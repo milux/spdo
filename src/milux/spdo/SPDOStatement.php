@@ -49,13 +49,20 @@ class SPDOStatement {
      * Helper function to bind an array of values to this statement
      *
      * @param array $toBind Parameters to bind
+     * @param array $types [optional] Known PDO types for binding, eliminates type inference
+     * Size of $toBind can be a multiple of the size of $types, types will be assigned in rotating fashion
+     *
      * @return SPDOStatement
      */
-    public function bindTyped(array $toBind) {
-        $bindCount = 1;
-        $types = SPDOConnection::getTypes($toBind);
-        foreach ($toBind as $k => $v) {
-            $this->statement->bindValue($bindCount++, $v, $types[$k]);
+    public function bindTyped(array $toBind, $types = null) {
+        $bindCount = 0;
+        if (!isset($types)) {
+            $types = SPDOConnection::getTypes($toBind);
+        }
+        $typesLen = count($types);
+        foreach ($toBind as $v) {
+            $type = $types[$bindCount % $typesLen];
+            $this->statement->bindValue(++$bindCount, $v, $type);
         }
         return $this;
     }
@@ -429,6 +436,12 @@ class SPDOStatement {
         }
     }
 
+    /**
+     * Retrieves all rows as stdClass objects
+     *
+     * @return array Array of stdClass objects
+     * @throws SPDOException If rows have been transformed
+     */
     public function getObjects() {
         if ($this->transformed) {
             throw new SPDOException('Cannot safely cast transformed rows, use transform() to cast!');

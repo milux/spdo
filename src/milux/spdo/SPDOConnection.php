@@ -31,7 +31,7 @@ class SPDOConnection {
         return array_map(function ($v) use ($typeMap) {
             $type = gettype($v);
             return isset($typeMap[$type]) ? $typeMap[$type] : \PDO::PARAM_STR;
-        }, $values);
+        }, array_values($values));
     }
 
     /**
@@ -232,8 +232,8 @@ class SPDOConnection {
      * NOTE: non-array entries in parameter 2 ($columnValuesMap)
      * are automatically expanded to arrays of suitable length!
      *
-     * @param string $table name of the INSERT target table
-     * @param array $columnValuesMap map of the form "column => array(values)" or "column => value"
+     * @param string $table Name of the INSERT target table
+     * @param array $columnValuesMap Map of the form "column => array(values)" or "column => value"
      *
      * @return SPDOStatement The statement object used for the INSERTs
      * @throws SPDOException On SQL error or in case of malformed $columnValuesMap
@@ -254,39 +254,60 @@ class SPDOConnection {
         }
         if ($batchSize === 0) {
             throw new SPDOException('No array was found in $columnValuesMap passed to SPDOConnection::batchInsert()');
-        } else {
-            //expand non-array values to arrays of appropriate size
-            foreach ($columnValuesMap as &$a) {
-                if (!is_array($a)) {
-                    $a = array_fill(0, $batchSize, $a);
+        }
+        //expand non-array values to arrays of appropriate size
+        $columns = array_map(function ($a) use ($batchSize) {
+            if (is_array($a)) {
+                return array_values($a);
+            } else {
+                return array_fill(0, $batchSize, $a);
+            }
+        }, $columnValuesMap);
+        // Transpose columns to rows
+        array_unshift($columns, null);
+        $rows = call_user_func_array('array_map', $columns);
+        // Call batchInsertRows()
+        return $this->batchInsertRows($table, array_keys($columnValuesMap), $rows, false);
+    }
+
+    /**
+     * INSERTs multiple rows into given columns
+     *
+     * @param string $table Name of the INSERT target table
+     * @param array $columnNames Array of columns names
+     * @param array $rows Array of row arrays
+     * @param bool $lengthCheck Whether to check the length of passed row arrays
+     *
+     * @return SPDOStatement The statement object used for the INSERTs
+     * @throws SPDOException On SQL error or in case of malformed $columnValuesMap
+     */
+    public function batchInsertRows($table, array $columnNames, array $rows, $lengthCheck = true) {
+        //pre-checks of size
+        $nCols = count($columnNames);
+        if ($lengthCheck) {
+            foreach ($rows as $a) {
+                if ($nCols !== count($a)) {
+                    throw new SPDOException('SPDOConnection::batchInsertRows() called with rows of unequal length');
                 }
             }
         }
         //construct and prepare insert statement
         $stmt = $this->prepare('INSERT INTO ' . $table
-            . ' (' . implode(', ', array_keys($columnValuesMap)) . ') '
-            . 'VALUES (' . implode(', ', array_fill(0, count($columnValuesMap), '?')) . ')');
-        //bind uses for the closure to vars
-        $pdoInstance = $this->pdo;
-        $returnIDs = $this->getReturnInsertIds();
-        //get sample data types by applying reset() an each values-array
-        $types = self::getTypes(array_map('reset', $columnValuesMap));
-        //prepend null to align $type array with bind counter
-        array_unshift($types, null);
-        $batchClosure = function () use ($stmt, $pdoInstance, $types) {
+            . ' (' . implode(', ', $columnNames) . ') '
+            . 'VALUES (' . implode(', ', array_fill(0, $nCols, '?')) . ')');
+        //get sample data types by applying reset() to first array
+        $types = self::getTypes(reset($rows));
+        $batchSize = count($rows);
+        for ($i = 0; $i < $batchSize; $i++) {
             $bindCounter = 1;
             //bind all values
-            foreach (func_get_args() as $v) {
-                $stmt->bindValue($bindCounter, $v, $types[$bindCounter]);
+            foreach ($rows[$i] as $cell) {
+                $stmt->bindValue($bindCounter, $cell, $types[$bindCounter]);
                 $bindCounter++;
             }
             //execute insert
             $stmt->execute();
-        };
-        //unshift the closure into the columns map
-        array_unshift($columnValuesMap, $batchClosure);
-        //use array_map to apply column-value-maps to the batch closure
-        call_user_func_array('array_map', $columnValuesMap);
+        }
         //return statement
         return $stmt;
     }
