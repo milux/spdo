@@ -11,14 +11,21 @@ namespace milux\spdo;
 
 class SPDOConnection {
 
-    protected static $typeMap = array(
+    protected static $typeMap = [
         'boolean' => \PDO::PARAM_BOOL,
         'integer' => \PDO::PARAM_INT,
         'double' => \PDO::PARAM_STR,
         'string' => \PDO::PARAM_STR,
         'NULL' => \PDO::PARAM_NULL
-    );
+    ];
 
+    /**
+     * Returns an array of PDO types for all elements of the given array
+     *
+     * @param array $values The values to check for types
+     *
+     * @return array The PDO data types of the values
+     */
     public static function getTypes(array $values) {
         $typeMap = self::$typeMap;
         return array_map(function ($v) use ($typeMap) {
@@ -46,26 +53,37 @@ class SPDOConnection {
      * MYSQL_ATTR_INIT_COMMAND - 'SET NAMES utf8'
      * ATTR_PERSISTENT - true
      */
-    public function __construct(SPDOConfig $configObject, array $options = array()) {
+    public function __construct(SPDOConfig $configObject, array $options = []) {
         $this->configObject = $configObject;
         //initialize internal PDO object
         $this->pdo = new \PDO(
             'mysql:host=' . $configObject->getHost() . ';dbname=' . $configObject->getSchema(),
             $configObject->getUser(),
             $configObject->getPassword(),
-            $options + array(
+            $options + [
                 \PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
                 \PDO::ATTR_PERSISTENT => true
-            )
+            ]
         );
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
     }
 
     /**
-     * enables the returning of insert ids by insert() and batchInsert()
+     * Returns whether the returning of insert IDs by insert() and batchInsert() is enabled
+     *
+     * @return bool Whether insert ID returning is enabled for this connection
      */
-    public function returnInsertIDs() {
-        $this->insertIDs = true;
+    public function getReturnInsertIds() {
+        return $this->insertIDs;
+    }
+
+    /**
+     * Controls the returning of insert IDs by insert() and batchInsert()
+     *
+     * @param bool $insertIds Whether insert ID(s) will be returned
+     */
+    public function setReturnInsertIds($insertIds = true) {
+        $this->insertIDs = $insertIds;
     }
 
     /**
@@ -95,6 +113,7 @@ class SPDOConnection {
      * @param string $level The explicit transaction isolation level
      *
      * @return bool success of transaction command
+     * @throws SPDOException On SQL error
      */
     public function begin($level = null) {
         $res = $this->pdo->beginTransaction();
@@ -132,9 +151,11 @@ class SPDOConnection {
      * @param string $table name of the table to update or insert into
      * @param array $keyColumnMap column-value-map for key columns to test
      * @param array $dataColumnMap [optional] column-value-map for non-key columns
+     *
      * @return int|null|SPDOStatement
+     * @throws SPDOException On SQL error
      */
-    public function save($table, array $keyColumnMap, array $dataColumnMap = array()) {
+    public function save($table, array $keyColumnMap, array $dataColumnMap = []) {
         //assemble WHERE clause from $keyColumnMap
         $whereClause = implode(' AND ', array_map(function ($c) {
             return $c . ' = ?';
@@ -162,9 +183,11 @@ class SPDOConnection {
      * @param array $columnValueMap map of column names (keys) and values to set
      * @param string $whereStmt an optional WHERE statement for the update, parameters MUST be bound with &quot;?&quot;
      * @param array $whereParams optional parameters to be passed for the WHERE statement
+     *
      * @return SPDOStatement the result statement of the UPDATE query
+     * @throws SPDOException On SQL error
      */
-    public function update($table, array $columnValueMap, $whereStmt = null, array $whereParams = array()) {
+    public function update($table, array $columnValueMap, $whereStmt = null, array $whereParams = []) {
         //assemble set instructions
         $setInstructions = array_map(function ($c) {
             return $c . ' = ?';
@@ -192,6 +215,7 @@ class SPDOConnection {
      *
      * @return int|SPDOStatement Depending on the state of this SPDOConnection instance,
      * an insert ID or the statement object of the performed INSERT is returned
+     * @throws SPDOException On SQL error
      */
     public function insert($table, array $columnValueMap, $insertIdName = null) {
         //prepare, bind values and execute the INSERT
@@ -200,23 +224,21 @@ class SPDOConnection {
             . 'VALUES (' . implode(', ', array_fill(0, count($columnValueMap), '?')) . ')')
             ->bindTyped($columnValueMap)->execute();
         //return execution result
-        return $this->insertIDs ? $this->pdo->lastInsertId($insertIdName) : $stmt;
+        return $this->getReturnInsertIds() ? $this->pdo->lastInsertId($insertIdName) : $stmt;
     }
 
     /**
-     * do multiple INSERTS into specified columns<br />
+     * Performs multiple INSERTS into specified columns<br />
      * NOTE: non-array entries in parameter 2 ($columnValuesMap)
      * are automatically expanded to arrays of suitable length!
      *
      * @param string $table name of the INSERT target table
      * @param array $columnValuesMap map of the form "column => array(values)" or "column => value"
-     * @param mixed $insertIdName [optional] parameter for PDO::lastInsertId()
      *
-     * @return array|SPDOStatement depending on the state of this SPDOConnection instance,
-     * an array of insert IDs or the statement object used for the INSERTs is returned
-     * @throws SPDOException in case of malformed $columnValuesMap
+     * @return SPDOStatement The statement object used for the INSERTs
+     * @throws SPDOException On SQL error or in case of malformed $columnValuesMap
      */
-    public function batchInsert($table, array $columnValuesMap, $insertIdName = null) {
+    public function batchInsert($table, array $columnValuesMap) {
         //pre-checks of size
         $batchSize = 0;
         foreach ($columnValuesMap as $a) {
@@ -246,12 +268,12 @@ class SPDOConnection {
             . 'VALUES (' . implode(', ', array_fill(0, count($columnValuesMap), '?')) . ')');
         //bind uses for the closure to vars
         $pdoInstance = $this->pdo;
-        $returnIDs = $this->insertIDs;
+        $returnIDs = $this->getReturnInsertIds();
         //get sample data types by applying reset() an each values-array
         $types = self::getTypes(array_map('reset', $columnValuesMap));
         //prepend null to align $type array with bind counter
         array_unshift($types, null);
-        $batchClosure = function () use ($stmt, $pdoInstance, $returnIDs, $insertIdName, $types) {
+        $batchClosure = function () use ($stmt, $pdoInstance, $types) {
             $bindCounter = 1;
             //bind all values
             foreach (func_get_args() as $v) {
@@ -260,15 +282,13 @@ class SPDOConnection {
             }
             //execute insert
             $stmt->execute();
-            //fetch insert id if requested
-            return $returnIDs ? $pdoInstance->lastInsertId($insertIdName) : null;
         };
         //unshift the closure into the columns map
         array_unshift($columnValuesMap, $batchClosure);
         //use array_map to apply column-value-maps to the batch closure
-        $insertIDs = call_user_func_array('array_map', $columnValuesMap);
-        //return insert id array or statement
-        return $returnIDs ? $insertIDs : $stmt;
+        call_user_func_array('array_map', $columnValuesMap);
+        //return statement
+        return $stmt;
     }
 
     /**
@@ -279,8 +299,9 @@ class SPDOConnection {
      * @param array $whereParams the parameters for the WHERE query
      *
      * @return SPDOStatement
+     * @throws SPDOException On SQL error
      */
-    public function delete($table, $whereClause = null, array $whereParams = array()) {
+    public function delete($table, $whereClause = null, array $whereParams = []) {
         $sql = 'DELETE FROM ' . $table;
         if (isset($whereClause)) {
             $sql .= ' WHERE ' . $whereClause;
@@ -289,11 +310,30 @@ class SPDOConnection {
     }
 
     /**
+     * Counts the rows in a given table, optionally filtered by a WHERE clause
+     *
+     * @param string $table Name of the table to DELETE from
+     * @param string $whereClause The WHERE clause of the query
+     * @param array $whereParams The parameters for the WHERE query
+     *
+     * @return int The number of counted rows
+     * @throws SPDOException On SQL error
+     */
+    public function count($table, $whereClause = null, array $whereParams = []) {
+        $sql = 'SELECT COUNT(*) FROM ' . $table;
+        if (isset($whereClause)) {
+            $sql .= ' WHERE ' . $whereClause;
+        }
+        return (int) $this->prepare($sql)->execute($whereParams)->cell();
+    }
+
+    /**
      * PDO::query() on common PDO object
      *
      * @param string $sql
-     * @return SPDOStatement|\PDOStatement
-     * @throws SPDOException
+     *
+     * @return SPDOStatement
+     * @throws SPDOException On SQL error
      */
     public function query($sql) {
         try {
@@ -307,8 +347,9 @@ class SPDOConnection {
      * PDO::exec() on common PDO object
      *
      * @param string $sql
+     *
      * @return int number of processed lines
-     * @throws SPDOException
+     * @throws SPDOException On SQL error
      */
     public function exec($sql) {
         try {
@@ -323,10 +364,11 @@ class SPDOConnection {
      *
      * @param string $sql
      * @param array $driver_options
-     * @return SPDOStatement|\PDOStatement prepared statement
-     * @throws SPDOException
+     *
+     * @return SPDOStatement prepared statement
+     * @throws SPDOException On SQL error
      */
-    public function prepare($sql, array $driver_options = array()) {
+    public function prepare($sql, array $driver_options = []) {
         try {
             return $this->configObject->newSPDOStatement($this->pdo->prepare($this->configObject->preProcess($sql), $driver_options));
         } catch (\PDOException $e) {
@@ -338,6 +380,7 @@ class SPDOConnection {
      * Obtain the last insert ID, for a certain object or in general
      *
      * @param string $insertIdName The name of the column or DB object that is auto-incremented
+     *
      * @return int The last insert ID
      */
     public function lastInsertId($insertIdName = null) {

@@ -183,14 +183,14 @@ class SPDOStatement {
             //recursive closure for grouping
             $groupClosure = function ($data, array $groups) use (&$groupClosure) {
                 $group = array_shift($groups);
-                $result = array();
+                $result = [];
                 foreach ($data as $rec) {
                     if (!isset($rec[$group])) {
                         throw new SPDOException($group . ': ' . json_encode($rec));
                     }
                     $key = $rec[$group];
                     if (!isset($result[$key])) {
-                        $result[$key] = array();
+                        $result[$key] = [];
                     }
                     unset($rec[$group]);
                     $result[$key][] = $rec;
