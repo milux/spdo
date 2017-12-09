@@ -55,63 +55,49 @@ trait MultiRowInsertSupport {
     }
 
     /**
-     * Do multiple INSERTS into specified columns<br />
-     * NOTE: non-array entries in parameter 2 ($columnValuesMap)
-     * are automatically expanded to arrays of suitable length!
+     * INSERTs multiple rows into given columns
      *
-     * @param string $table name of the INSERT target table
-     * @param array $columnValuesMap map of the form "column => array(values)" or "column => value"
+     * @param string $table Name of the INSERT target table
+     * @param array $columnNames Array of columns names
+     * @param array $rows Array of row arrays
+     * @param bool $lengthCheck Whether to check the length of passed row arrays
      *
-     * @throws SPDOException in case of malformed $columnValuesMap
+     * @return SPDOStatement The statement object used for the INSERTs
+     * @throws SPDOException On SQL error or in case of malformed $columnValuesMap
      */
-    public function batchInsert($table, array $columnValuesMap) {
+    public function batchInsertRows($table, array $columnNames, array $rows, $lengthCheck = true) {
         //pre-checks of size
-        $batchSize = 0;
-        foreach ($columnValuesMap as $a) {
-            if (is_array($a)) {
-                if ($batchSize === 0) {
-                    $batchSize = count($a);
-                } else {
-                    if ($batchSize !== count($a)) {
-                        throw new SPDOException('SPDOConnection::batchInsert() called with arrays of unequal length');
-                    }
-                }
-            }
-        }
-        if ($batchSize === 0) {
-            throw new SPDOException('No array was found in $columnValuesMap passed to SPDOConnection::batchInsert()');
-        } else {
-            //expand non-array values to arrays of appropriate size
-            foreach ($columnValuesMap as &$a) {
-                if (!is_array($a)) {
-                    $a = array_fill(0, $batchSize, $a);
+        $nCols = count($columnNames);
+        if ($lengthCheck) {
+            foreach ($rows as $a) {
+                if ($nCols !== count($a)) {
+                    throw new SPDOException('SPDOConnection::batchInsertRows() called with rows of unequal length');
                 }
             }
         }
         // Build string for insertion of one row
-        $rowString = '(' . implode(', ', array_fill(0, count($columnValuesMap), '?')) . ')';
-        $columnNames = array_keys($columnValuesMap);
-        // Transpose parameter matrix
-        array_unshift($columnValuesMap, null);
-        $paramRows = call_user_func_array('array_map', array_values($columnValuesMap));
-
+        $rowString = '(' . implode(', ', array_fill(0, $nCols, '?')) . ')';
+        // Infer data types from first row
+        $colTypes = SPDOConnection::getTypes(reset($rows));
+        // Insert all rows, no more than maxInsertRows at a time
+        $batchSize = count($rows);
         $rowOffset = 0;
         if ($batchSize > $this->maxInsertRows) {
             $stmt = $this->prepare($this->buildInsertSQL($table, $columnNames, $rowString, $this->maxInsertRows));
             while ($batchSize > $this->maxInsertRows) {
                 // Concatenate all row arrays that are to be processed in this round
                 $stmt->bindTyped(call_user_func_array('array_merge',
-                    array_map('array_values', array_slice($paramRows, $rowOffset, $this->maxInsertRows))))
+                    array_map('array_values', array_slice($rows, $rowOffset, $this->maxInsertRows))), $colTypes)
                     ->execute();
                 $rowOffset += $this->maxInsertRows;
                 $batchSize -= $this->maxInsertRows;
             }
         }
         // Handle the remaining rows
-        $this->prepare($this->buildInsertSQL($table, $columnNames, $rowString, $batchSize))
+        return $this->prepare($this->buildInsertSQL($table, $columnNames, $rowString, $batchSize))
             // Concatenate all remaining arrays that are to be processed in this last round
             ->bindTyped(call_user_func_array('array_merge',
-                array_map('array_values', array_slice($paramRows, $rowOffset, $this->maxInsertRows))))
+                array_map('array_values', array_slice($rows, $rowOffset))), $colTypes)
             ->execute();
     }
 

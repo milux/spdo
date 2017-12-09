@@ -9,6 +9,7 @@
 
 namespace milux\spdo;
 
+
 class SPDO {
 
     const LEVEL_READ_UNCOMMITTED = 'READ UNCOMMITTED';
@@ -181,14 +182,29 @@ class SPDO {
      * NOTE: non-array entries in parameter 2 ($columnValuesMap)
      * are automatically expanded to arrays of suitable length!
      *
-     * @param string $table name of the INSERT target table
-     * @param array $columnValuesMap map of the form "column => array(values)" or "column => value"
+     * @param string $table Name of the INSERT target table
+     * @param array $columnValuesMap Map of the form "column => array(values)" or "column => value"
      *
      * @return SPDOStatement The statement object used for the INSERTs
      * @throws SPDOException On SQL error or in case of malformed $columnValuesMap
      */
     public static function batchInsert($table, array $columnValuesMap) {
         return self::getInstance()->batchInsert($table, $columnValuesMap);
+    }
+
+    /**
+     * INSERTs multiple rows into given columns
+     *
+     * @param string $table Name of the INSERT target table
+     * @param array $columnNames Array of columns names
+     * @param array $rows Array of row arrays
+     * @param bool $lengthCheck Whether to check the length of passed row arrays
+     *
+     * @return SPDOStatement The statement object used for the INSERTs
+     * @throws SPDOException On SQL error or in case of malformed $columnValuesMap
+     */
+    public static function batchInsertRows($table, array $columnNames, array $rows, $lengthCheck = true) {
+        return self::getInstance()->batchInsertRows($table, $columnNames, $rows, $lengthCheck);
     }
 
     /**

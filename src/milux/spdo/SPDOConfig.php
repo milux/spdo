@@ -46,7 +46,7 @@ abstract class SPDOConfig {
      * @return SPDOConnection either a SPDOConnection or a subclass with different/extended functionality
      */
     public function newSPDOConnection() {
-        return new SPDOConnection($this);
+        return new ModernSPDOConnection($this);
     }
 
     /**
