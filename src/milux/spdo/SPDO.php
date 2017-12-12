@@ -130,6 +130,16 @@ class SPDO {
     }
 
     /**
+     * Returns whether the connection does currently have a transaction context
+     *
+     * @return bool Whether in transaction context
+     * @throws SPDOException On initialization error
+     */
+    public static function inTransaction() {
+        return self::getInstance()->inTransaction();
+    }
+
+    /**
      * This function automatically inserts/updates data depending on a set of key columns/values.
      * If one or more row(s) with certain values in certain columns as specified by $keyColumnMap
      * exist in $table, the data of $dataColumnMap is UPDATEd to the values of the latter.
