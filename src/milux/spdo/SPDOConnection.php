@@ -142,6 +142,15 @@ class SPDOConnection {
     }
 
     /**
+     * Returns whether the connection does currently have a transaction context
+     *
+     * @return bool Whether in transaction context
+     */
+    public function inTransaction() {
+        return $this->pdo->inTransaction();
+    }
+
+    /**
      * This function automatically inserts/updates data depending on a set of key columns/values.
      * If one or more row(s) with certain values in certain columns as specified by $keyColumnMap
      * exist in $table, the data of $dataColumnMap is UPDATEd to the values of the latter.
