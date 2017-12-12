@@ -419,7 +419,8 @@ class SPDOStatement {
             return $this->immerse(function ($data) {
                 //reduce 1-element-maps inside 1-element-arrays to their value
                 if (count($data) === 1) {
-                    return reset(reset($data));
+                    $data = reset($data);
+                    return reset($data);
                 } else {
                     throw new SPDOException('Unique fetch failed, map with more than one element was found!');
                 }
