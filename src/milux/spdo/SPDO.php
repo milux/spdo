@@ -70,7 +70,7 @@ class SPDO {
      * @return bool Whether insert ID returning is enabled for this connection
      * @throws SPDOException On initialization error
      */
-    public function getReturnInsertIds() {
+    public static function getReturnInsertIds() {
         return self::getInstance()->getReturnInsertIds();
     }
 
@@ -80,7 +80,7 @@ class SPDO {
      * @param bool $insertIds Whether insert ID(s) will be returned
      * @throws SPDOException On initialization error
      */
-    public function setReturnInsertIds($insertIds = true) {
+    public static function setReturnInsertIds($insertIds = true) {
         self::getInstance()->setReturnInsertIds($insertIds);
     }
 
