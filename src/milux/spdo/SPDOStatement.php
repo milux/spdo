@@ -59,10 +59,21 @@ class SPDOStatement {
         if (!isset($types)) {
             $types = SPDOConnection::getTypes($toBind);
         }
-        $typesLen = count($types);
-        foreach ($toBind as $v) {
-            $type = $types[$bindCount % $typesLen];
-            $this->statement->bindValue(++$bindCount, $v, $type);
+        $aKeys = array_keys($toBind);
+        if ($aKeys === array_keys($aKeys)) {
+            $typesLen = count($types);
+            foreach ($toBind as $v) {
+                $type = $types[$bindCount % $typesLen];
+                $this->bindValue(++$bindCount, $v, $type);
+            }
+        } else {
+            foreach ($toBind as $k => $v) {
+                $type = $types[$k];
+                if ($k[0] !== ':') {
+                    $k = ':' . $k;
+                }
+                $this->bindValue($k, $v, $type);
+            }
         }
         return $this;
     }

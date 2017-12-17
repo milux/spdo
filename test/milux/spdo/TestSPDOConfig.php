@@ -5,6 +5,8 @@ namespace milux\spdo;
 
 class TestSPDOConfig extends SPDOConfig {
 
+    const TEST_TABLE = 'test_table';
+
     private $connectionFactory;
 
     public function __construct(callable $connectionFactory) {

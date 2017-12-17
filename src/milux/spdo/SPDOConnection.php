@@ -31,7 +31,7 @@ class SPDOConnection {
         return array_map(function ($v) use ($typeMap) {
             $type = gettype($v);
             return isset($typeMap[$type]) ? $typeMap[$type] : \PDO::PARAM_STR;
-        }, array_values($values));
+        }, $values);
     }
 
     /**
@@ -231,7 +231,7 @@ class SPDOConnection {
         $stmt = $this->prepare('INSERT INTO ' . $table
             . ' (' . implode(', ', array_keys($columnValueMap)) . ') '
             . 'VALUES (' . implode(', ', array_fill(0, count($columnValueMap), '?')) . ')')
-            ->bindTyped($columnValueMap)->execute();
+            ->bindTyped(array_values($columnValueMap))->execute();
         //return execution result
         return $this->getReturnInsertIds() ? $this->pdo->lastInsertId($insertIdName) : $stmt;
     }
