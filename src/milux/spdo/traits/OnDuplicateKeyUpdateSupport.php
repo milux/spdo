@@ -52,7 +52,7 @@ trait OnDuplicateKeyUpdateSupport {
             . ' (' . implode(', ', array_keys($columnValueMap)) . ') '
             . 'VALUES (' . implode(', ', array_fill(0, count($columnValueMap), '?')) . ') '
             . 'ON DUPLICATE KEY UPDATE ' . implode(', ', $setInstructions))
-            ->bindTyped($columnValueMap)->execute();
+            ->bindTyped(array_values($columnValueMap))->execute();
     }
 
 }
