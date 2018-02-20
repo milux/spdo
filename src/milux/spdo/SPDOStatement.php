@@ -485,6 +485,9 @@ class SPDOStatement {
      * @return SPDOStatement $this
      */
     public function bindValue($parameter, $value, $data_type) {
+        if (!is_numeric($parameter) && $parameter[0] !== ':') {
+            $parameter = ':' . $parameter;
+        }
         $this->statement->bindValue($parameter, $value, $data_type);
         return $this;
     }
