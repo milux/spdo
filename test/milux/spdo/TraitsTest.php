@@ -4,11 +4,10 @@ namespace milux\spdo;
 
 
 require __DIR__ . '/../../../vendor/autoload.php';
-require __DIR__ . '/TestSPDOConfig.php';
+require __DIR__ . '/../../autoload.php';
 
 use milux\spdo\traits\MultiRowInsertSupport;
 use milux\spdo\traits\OnDuplicateKeyUpdateSupport;
-use PHPUnit\Framework\TestCase;
 
 class MultiRowInsertConnection extends SPDOConnection {
     use MultiRowInsertSupport;
@@ -18,27 +17,7 @@ class OnDuplicateKeyConnection extends SPDOConnection {
     use OnDuplicateKeyUpdateSupport;
 }
 
-class Test extends TestCase {
-
-    const TEST_TABLE = 'test_table';
-
-    /**
-     * @throws SPDOException
-     */
-    public static function setUpBeforeClass() {
-        SPDO::setConfig(new TestSPDOConfig(function ($config) {
-            return new SPDOConnection($config);
-        }));
-        $testTable = self::TEST_TABLE;
-        SPDO::exec(<<<SQL
-CREATE TABLE IF NOT EXISTS $testTable (
-    col1 INT NOT NULL,
-    col2 INT NOT NULL,
-    col3 VARCHAR(45) NULL DEFAULT NULL,
-PRIMARY KEY (col1))
-SQL
-        );
-    }
+class TraitsTest extends TestTemplate {
 
     /**
      * Test multiple row insert trait
@@ -123,20 +102,6 @@ SQL
         self::assertEquals(2, $instance->query('SELECT ROW_COUNT()')->cell());
         // We expect 3 rows
         self::assertEquals(3, SPDO::count(self::TEST_TABLE));
-    }
-
-    /**
-     * @throws SPDOException
-     */
-    public function tearDown() {
-        SPDO::exec('TRUNCATE ' . self::TEST_TABLE);
-    }
-
-    /**
-     * @throws SPDOException
-     */
-    public static function tearDownAfterClass() {
-        SPDO::exec('DROP TABLE test_table');
     }
 
 }
