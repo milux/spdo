@@ -15,15 +15,16 @@ class SPDOStatement {
      * @var \PDOStatement
      */
     protected $statement;
-    //nesting level (groups) for advanced data handling
+    // Nesting level (groups) for advanced data handling
     protected $nesting = 0;
-    //data structures for advanced data handling
+    // Data structures for advanced data handling
     protected $availableColumns = null;
     protected $data = null;
-    //marker for call to transform()
+    // Marker for call to transform()
     protected $transformed = false;
-    //buffer for iterating with cell()
+    // Buffer and index for iterating over columns of a line
     protected $line = null;
+    protected $nCell = 0;
 
     public function __construct($statement) {
         $this->statement = $statement;
@@ -337,30 +338,25 @@ class SPDOStatement {
         if ($this->transformed) {
             throw new SPDOException('Cannot safely iterate cells after transform()!');
         }
-        $this->init();
-        if ($reset) {
-            reset($this->data);
+        // If not initialized, we must call reset() to obtain first line
+        if (!isset($this->data)) {
+            $reset = true;
         }
-        //iteration logic
-        if (!isset($this->line) || $reset) {
-            //if line is not set, use each() over data to get next line
-            $eachOut = each($this->data);
-            if ($eachOut === false) {
+        $this->init();
+        if ($reset || empty($this->line) || count($this->line) === $this->nCell) {
+            // Call reset() or next(), which return false on empty array or end of array, respectively
+            $row = $reset ? reset($this->data) : next($this->data);
+            if (empty($row)) {
+                // No line left or no data at all
                 return false;
             } else {
-                $this->line = $eachOut[1];
-                reset($this->line);
+                // Reset the pointer of the line
+                $this->line = array_values($row);
+                $this->nCell = 1;
+                return $this->line[0];
             }
         }
-        $eachIn = each($this->line);
-        if ($eachIn === false) {
-            //set $this->line to null and do one-step-recursion to get next cell
-            $this->line = null;
-            return $this->cell();
-        } else {
-            //return cell
-            return $eachIn[1];
-        }
+        return $this->line[$this->nCell++];
     }
 
     /**
@@ -378,12 +374,12 @@ class SPDOStatement {
         if ($this->line !== null) {
             throw new SPDOException('Cannot iterate rows while iterating cells!');
         }
-        $this->init();
-        if ($reset) {
-            reset($this->data);
+        // If not initialized, we must call reset() to obtain first line
+        if (!isset($this->data)) {
+            $reset = true;
         }
-        $each = each($this->data);
-        return $each === false ? false : $each[1];
+        $this->init();
+        return $reset ? reset($this->data) : next($this->data);
     }
 
     /**

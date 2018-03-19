@@ -37,7 +37,7 @@ SQL
      * @throws SPDOException
      */
     public static function tearDownAfterClass() {
-        SPDO::exec('DROP TABLE test_table');
+        SPDO::exec('DROP TABLE ' . self::TEST_TABLE);
     }
 
 }
