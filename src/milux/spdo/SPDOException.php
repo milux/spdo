@@ -9,7 +9,7 @@
 
 namespace milux\spdo;
 
-class SPDOException extends \Exception {
+class SPDOException extends \RuntimeException {
 
     /**
      * SPDOException constructor.
