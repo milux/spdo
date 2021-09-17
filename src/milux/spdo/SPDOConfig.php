@@ -17,6 +17,13 @@ abstract class SPDOConfig {
     public abstract function getHost();
 
     /**
+     * @return string|null port of the database or null for the default
+     */
+    public function getPort() {
+        return null;
+    }
+
+    /**
      * @return string username for login
      */
     public abstract function getUser();
