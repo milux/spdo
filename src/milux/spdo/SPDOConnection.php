@@ -56,8 +56,13 @@ class SPDOConnection {
     public function __construct(SPDOConfig $configObject, array $options = []) {
         $this->configObject = $configObject;
         //initialize internal PDO object
+        $dsn = 'mysql:host=' . $configObject->getHost() . ';dbname=' . $configObject->getSchema();
+        $port = $configObject->getPort();
+        if ($port) {
+            $dsn .= ";port=${port}";
+        }
         $this->pdo = new \PDO(
-            'mysql:host=' . $configObject->getHost() . ';dbname=' . $configObject->getSchema(),
+            $dsn,
             $configObject->getUser(),
             $configObject->getPassword(),
             $options + [
